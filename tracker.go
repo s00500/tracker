@@ -41,6 +41,11 @@ func (t Tracker) Cancel() {
 	}
 }
 
+// CancelAndWait cancels a tracker and all routines created from it, waiting till they have fully finished
+func (t Tracker) Wait() {
+	t.wg.Wait()
+}
+
 // Cancel multiple things at a time and wait on all of them
 func CancelAndWaitMulti(trackers ...Tracker) {
 	wg := sync.WaitGroup{}
