@@ -93,12 +93,12 @@ func (t Tracker) wgDone() {
 func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
 	t.wgAdd()
 	go func() {
-		function(t)
 		if t.deferFunc != nil {
-			(*t.deferFunc)()
+			defer (*t.deferFunc)()
 		} else if globalDeferFunc != nil {
-			(*globalDeferFunc)()
+			defer (*globalDeferFunc)()
 		}
+		function(t)
 		t.wgDone()
 	}()
 }
@@ -106,12 +106,12 @@ func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routi
 // Run, same as Go but syncronus
 func (t Tracker) Run(function func(tkr Tracker)) {
 	t.wgAdd()
-	function(t)
 	if t.deferFunc != nil { // Is this a good choice ? I do not use run a lot anyways....
-		(*t.deferFunc)()
+		defer (*t.deferFunc)()
 	} else if globalDeferFunc != nil {
-		(*globalDeferFunc)()
+		defer (*globalDeferFunc)()
 	}
+	function(t)
 	t.wgDone()
 }
 
