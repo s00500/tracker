@@ -16,7 +16,7 @@ type Tracker struct {
 	deferFunc *func()
 }
 
-func (t Tracker) SetDefaultDefer(function func()) {
+func SetDefaultDefer(function func()) {
 	globalDeferFunc = &function
 }
 
