@@ -5,12 +5,23 @@ import (
 	"sync"
 )
 
+var globalDeferFunc *func()
+
 // Thread safe go routine tracker
 type Tracker struct {
-	wg     *sync.WaitGroup
-	ctx    context.Context
-	cancel *context.CancelFunc
-	parent *Tracker
+	wg        *sync.WaitGroup
+	ctx       context.Context
+	cancel    *context.CancelFunc
+	parent    *Tracker
+	deferFunc *func()
+}
+
+func (t Tracker) SetDefaultDefer(function func()) {
+	globalDeferFunc = &function
+}
+
+func (t Tracker) SetDefer(function func()) {
+	t.deferFunc = &function
 }
 
 // Root gets you the initial tracker, similar to combining context.Background and context.WithCancel with a waitgroup
@@ -83,14 +94,24 @@ func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routi
 	t.wgAdd()
 	go func() {
 		function(t)
+		if t.deferFunc != nil {
+			(*t.deferFunc)()
+		} else if globalDeferFunc != nil {
+			(*globalDeferFunc)()
+		}
 		t.wgDone()
 	}()
 }
 
 // Run, same as Go but syncronus
-func (t Tracker) Run(function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
+func (t Tracker) Run(function func(tkr Tracker)) {
 	t.wgAdd()
 	function(t)
+	if t.deferFunc != nil { // Is this a good choice ? I do not use run a lot anyways....
+		(*t.deferFunc)()
+	} else if globalDeferFunc != nil {
+		(*globalDeferFunc)()
+	}
 	t.wgDone()
 }
 
