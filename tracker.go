@@ -3,9 +3,6 @@ package tracker
 import (
 	"context"
 	"sync"
-
-	"github.com/google/uuid"
-	log "github.com/s00500/env_logger"
 )
 
 var globalDeferFunc *func()
@@ -36,6 +33,28 @@ func Root() Tracker {
 func RootLogging() Tracker {
 	ctx, cancel := context.WithCancel(context.Background())
 	return Tracker{wg: &sync.WaitGroup{}, ctx: ctx, cancel: &cancel, Logging: true}
+}
+
+// NewSubGroup is used to get a new sub cancel group basically
+func (t Tracker) NewSubGroup() Tracker {
+	wg := &sync.WaitGroup{}
+	ctx, cancel := context.WithCancel(t.ctx)
+	return Tracker{parent: &t, wg: wg, ctx: ctx, cancel: &cancel}
+}
+
+// CancelAndWait cancels a tracker and all routines created from it, waiting till they have fully finished
+func (t Tracker) CancelAndWait() {
+	if t.cancel != nil {
+		(*t.cancel)()
+	}
+	t.wg.Wait()
+}
+
+// CancelAndWait cancels a tracker and all routines created from it, without waiting
+func (t Tracker) Cancel() {
+	if t.cancel != nil {
+		(*t.cancel)()
+	}
 }
 
 // CancelAndWait cancels a tracker and all routines created from it, waiting till they have fully finished
@@ -77,32 +96,6 @@ func (t Tracker) wgDone() {
 
 func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
 	t.GoRef("", function)
-}
-
-// Go starts a tracked go routine and injects a tracker that needs to be used. At a minimum use a select to listen to its Done() channel
-func (t Tracker) GoRef(ref string, function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
-	t.wgAdd()
-
-	t.AddStack()
-
-	source := getPackage()
-	routineid := uuid.New().String()
-	if t.Logging {
-		log.Infof("Start %s-%s from %s", routineid, ref, source)
-	}
-
-	go func() {
-		if t.deferFunc != nil {
-			defer (*t.deferFunc)()
-		} else if globalDeferFunc != nil {
-			defer (*globalDeferFunc)()
-		}
-		function(t)
-		t.wgDone()
-		if t.Logging {
-			log.Infof("Stop %s-%s from %s", routineid, ref, source)
-		}
-	}()
 }
 
 // Run, same as Go but syncronus
