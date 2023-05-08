@@ -35,6 +35,10 @@ func RootLogging() Tracker {
 	return Tracker{wg: &sync.WaitGroup{}, ctx: ctx, cancel: &cancel, Logging: true}
 }
 
+func (t Tracker) IsRoot() bool {
+	return t.parent == nil
+}
+
 // NewSubGroup is used to get a new sub cancel group basically
 func (t Tracker) NewSubGroup() Tracker {
 	wg := &sync.WaitGroup{}
