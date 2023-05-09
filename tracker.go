@@ -15,6 +15,7 @@ type Tracker struct {
 	parent    *Tracker
 	deferFunc *func()
 	Logging   bool
+	Reference string // Another debug field....
 }
 
 func SetDefaultDefer(function func()) {
