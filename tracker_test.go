@@ -60,3 +60,25 @@ func someFunc(t *testing.T, trk tracker.Tracker) {
 
 	time.Sleep(time.Second * 5)
 }
+
+func TestSubTrackers(t *testing.T) {
+	some := struct {
+		trk tracker.Tracker
+	}{}
+
+	trk := tracker.Root()
+
+	sub := trk.NewSubGroup()
+
+	if !trk.IsRoot() {
+		t.Fail()
+	}
+
+	if sub.IsRoot() {
+		t.Fail()
+	}
+
+	if !some.trk.IsRoot() {
+		t.Fail()
+	}
+}
