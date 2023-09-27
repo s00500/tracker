@@ -27,6 +27,13 @@ func TestTracker(t *testing.T) {
 	t.Log("Done2")
 }
 
+func TestEmptyTracker(t *testing.T) {
+	trk := tracker.Tracker{}
+
+	trk.Done()
+
+}
+
 func someFunc(t *testing.T, trk tracker.Tracker) {
 	subTrk := trk.NewSubGroup()
 

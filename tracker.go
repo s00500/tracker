@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
@@ -100,11 +101,19 @@ func (t Tracker) wgDone() {
 }
 
 func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
+	if t.ctx == nil {
+		fmt.Print("ERROR: Called go on empty tracker")
+		return
+	}
 	t.GoRef("", function)
 }
 
 // Run, same as Go but syncronus
 func (t Tracker) Run(function func(tkr Tracker)) {
+	if t.ctx == nil {
+		fmt.Print("ERROR: Called go on empty tracker")
+		return
+	}
 	t.wgAdd()
 	if t.deferFunc != nil { // Is this a good choice ? I do not use run a lot anyways....
 		defer (*t.deferFunc)()
@@ -117,6 +126,10 @@ func (t Tracker) Run(function func(tkr Tracker)) {
 
 // Done is a channel like context.Done()
 func (t Tracker) Done() <-chan struct{} {
+	if t.ctx == nil {
+		fmt.Print("ERROR: Called done on empty tracker")
+		return nil
+	}
 	return t.ctx.Done()
 }
 
