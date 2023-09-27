@@ -30,8 +30,11 @@ func TestTracker(t *testing.T) {
 func TestEmptyTracker(t *testing.T) {
 	trk := tracker.Tracker{}
 
-	trk.Done()
-
+	select {
+	case <-trk.Done():
+		return
+	}
+	t.Fail()
 }
 
 func someFunc(t *testing.T, trk tracker.Tracker) {

@@ -102,7 +102,7 @@ func (t Tracker) wgDone() {
 
 func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
 	if t.ctx == nil {
-		fmt.Print("ERROR: Called go on empty tracker")
+		fmt.Print("ERROR: Called go on empty tracker, not running")
 		return
 	}
 	t.GoRef("", function)
@@ -111,7 +111,7 @@ func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routi
 // Run, same as Go but syncronus
 func (t Tracker) Run(function func(tkr Tracker)) {
 	if t.ctx == nil {
-		fmt.Print("ERROR: Called go on empty tracker")
+		fmt.Print("ERROR: Called run on empty tracker, not running")
 		return
 	}
 	t.wgAdd()
@@ -127,8 +127,12 @@ func (t Tracker) Run(function func(tkr Tracker)) {
 // Done is a channel like context.Done()
 func (t Tracker) Done() <-chan struct{} {
 	if t.ctx == nil {
-		fmt.Print("ERROR: Called done on empty tracker")
-		return nil
+		fmt.Print("ERROR: Called done on empty tracker, return instant cancel")
+		stop := make(chan struct{})
+		go func() {
+			stop <- struct{}{}
+		}()
+		return stop
 	}
 	return t.ctx.Done()
 }
