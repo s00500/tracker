@@ -32,6 +32,12 @@ func Root() Tracker {
 	ctx, cancel := context.WithCancel(context.Background())
 	return Tracker{wg: &sync.WaitGroup{}, ctx: ctx, cancel: &cancel}
 }
+
+func FromContext(ctx context.Context) Tracker {
+	internalCtx, cancel := context.WithCancel(ctx)
+	return Tracker{wg: &sync.WaitGroup{}, ctx: internalCtx, cancel: &cancel}
+}
+
 func RootLogging() Tracker {
 	ctx, cancel := context.WithCancel(context.Background())
 	return Tracker{wg: &sync.WaitGroup{}, ctx: ctx, cancel: &cancel, Logging: true}
