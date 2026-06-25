@@ -23,8 +23,12 @@ func SetDefaultDefer(function func()) {
 	globalDeferFunc = &function
 }
 
-func (t Tracker) SetDefer(function func()) {
+// SetDefer sets a function that runs (deferred) when each tracked goroutine
+// started from the returned tracker finishes. Trackers are value types, so the
+// returned tracker must be used: trk = trk.SetDefer(fn).
+func (t Tracker) SetDefer(function func()) Tracker {
 	t.deferFunc = &function
+	return t
 }
 
 // Root gets you the initial tracker, similar to combining context.Background and context.WithCancel with a waitgroup
@@ -51,7 +55,7 @@ func (t Tracker) IsRoot() bool {
 func (t Tracker) NewSubGroup() Tracker {
 	wg := &sync.WaitGroup{}
 	ctx, cancel := context.WithCancel(t.ctx)
-	return Tracker{parent: &t, wg: wg, ctx: ctx, cancel: &cancel}
+	return Tracker{parent: &t, wg: wg, ctx: ctx, cancel: &cancel, Logging: t.Logging, deferFunc: t.deferFunc}
 }
 
 // CancelAndWait cancels a tracker and all routines created from it, waiting till they have fully finished
@@ -62,14 +66,14 @@ func (t Tracker) CancelAndWait() {
 	t.wg.Wait()
 }
 
-// CancelAndWait cancels a tracker and all routines created from it, without waiting
+// Cancel cancels a tracker and all routines created from it, without waiting
 func (t Tracker) Cancel() {
 	if t.cancel != nil {
 		(*t.cancel)()
 	}
 }
 
-// CancelAndWait cancels a tracker and all routines created from it, waiting till they have fully finished
+// Wait blocks until all routines created from the tracker have finished (without cancelling)
 func (t Tracker) Wait() {
 	t.wg.Wait()
 }
@@ -107,37 +111,33 @@ func (t Tracker) wgDone() {
 }
 
 func (t Tracker) Go(function func(tkr Tracker)) { // Always call before go routine creation, also always call defer done
-	if t.ctx == nil {
-		fmt.Print("ERROR: Called go on empty tracker, not running")
-		return
-	}
 	t.GoRef("", function)
 }
 
 // Run, same as Go but syncronus
 func (t Tracker) Run(function func(tkr Tracker)) {
-	if t.ctx == nil {
-		fmt.Print("ERROR: Called run on empty tracker, not running")
+	if t.ctx == nil || t.wg == nil {
+		fmt.Println("ERROR: Called run on empty tracker, not running")
 		return
 	}
 	t.wgAdd()
-	if t.deferFunc != nil { // Is this a good choice ? I do not use run a lot anyways....
+	defer t.wgDone() // registered first so it runs last: waiters only unblock after cleanup
+	if t.deferFunc != nil {
 		defer (*t.deferFunc)()
 	} else if globalDeferFunc != nil {
 		defer (*globalDeferFunc)()
 	}
 	function(t)
-	t.wgDone()
 }
 
 // Done is a channel like context.Done()
 func (t Tracker) Done() <-chan struct{} {
 	if t.ctx == nil {
-		fmt.Print("ERROR: Called done on empty tracker, return instant cancel")
+		fmt.Println("ERROR: Called done on empty tracker, return instant cancel")
+		// Mirror a cancelled context: a closed channel stays readable forever,
+		// so callers polling Done() in a loop don't block on the second read.
 		stop := make(chan struct{})
-		go func() {
-			stop <- struct{}{}
-		}()
+		close(stop)
 		return stop
 	}
 	return t.ctx.Done()

@@ -1,6 +1,7 @@
 package tracker_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -30,11 +31,36 @@ func TestTracker(t *testing.T) {
 func TestEmptyTracker(t *testing.T) {
 	trk := tracker.Tracker{}
 
-	select {
-	case <-trk.Done():
-		return
+	// Done() on an empty tracker must behave like a cancelled context: a closed
+	// channel that stays readable, so polling it repeatedly never blocks.
+	for i := 0; i < 3; i++ {
+		select {
+		case <-trk.Done():
+		case <-time.After(time.Second):
+			t.Fatalf("Done() blocked on read %d for an empty tracker", i)
+		}
 	}
-	t.Fail()
+
+	// Go/Run on an empty tracker must be no-ops rather than panic on the nil wg.
+	trk.Go(func(tkr tracker.Tracker) { t.Error("Go ran on empty tracker") })
+	trk.GoRef("ref", func(tkr tracker.Tracker) { t.Error("GoRef ran on empty tracker") })
+	trk.Run(func(tkr tracker.Tracker) { t.Error("Run ran on empty tracker") })
+}
+
+func TestSetDefer(t *testing.T) {
+	trk := tracker.Root().SetDefer(func() {}) // ensure SetDefer returns a usable tracker
+
+	var deferCount atomic.Int32
+	trk = trk.SetDefer(func() { deferCount.Add(1) })
+
+	started := make(chan struct{})
+	trk.Go(func(tkr tracker.Tracker) { close(started) })
+	<-started
+	trk.CancelAndWait()
+
+	if got := deferCount.Load(); got != 1 {
+		t.Fatalf("defer func ran %d times, want 1 (SetDefer return value must be used)", got)
+	}
 }
 
 func someFunc(t *testing.T, trk tracker.Tracker) {
@@ -63,7 +89,7 @@ func someFunc(t *testing.T, trk tracker.Tracker) {
 	})
 
 	select {
-	case <-time.Tick(time.Second * 5):
+	case <-time.After(time.Second * 5):
 	case <-trk.Done():
 		return
 	}
