@@ -5,3 +5,7 @@ After having to work on many projects where it is important to cancel many gorou
 It basically combines a context and a waitgroup and makes handling them easier by providing a interface for starting go routines similar to go's x/sync Errgroup.
 
 Feel free to comment about what could be made better or let me know if you like the design.
+
+## License
+
+MIT — see [LICENSE](LICENSE). You may use, modify, and distribute the software freely; the only requirement is that the copyright notice and author attribution be retained in copies.
